@@ -91,4 +91,9 @@ object WorkTaskGenerators {
   val genStartedTask = genTask(value(Started), arbitrary[Int])
   val genFinishedTask = genTask(value(Finished), arbitrary[Int])
   val genWorkTask = genTask(genStatus, arbitrary[Int])
+  val genValidTask = oneOf(
+    genTask(value(Created), value(0)),
+    genTask(value(Started), posNum[Int]),
+    genTask(value(Finished), posNum[Int])
+  )
 }
