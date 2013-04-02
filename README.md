@@ -32,4 +32,4 @@ Domain Model
 TODO
 ====
 
- # Refactor scalacheck properties - they are ugly and non Scala-ish now
+ 1. Refactor scalacheck properties - they are ugly and non Scala-ish now
