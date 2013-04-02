@@ -4,82 +4,83 @@ import org.scalacheck._
 import Prop._
 import Gen._
 import Arbitrary._
+import WorkTaskGenerators._
 
-object WorkTaskSpecification extends Properties("WorkTask") with Generators {
+object WorkTaskSpecification extends Properties("WorkTask") {
   include(new CreatedTaskSpecification)
   include(new StartedTaskSpecification)
   include(new FinishedTaskSpecification)
 }
 
-class CreatedTaskSpecification extends Properties("Created") with Generators {
-  import CommonProperties._
+class WorkTaskProperties(n: String, val generator: Gen[WorkTask]) extends
+  Properties(n) with WorkTaskCommonProperties
+
+class CreatedTaskSpecification extends WorkTaskProperties("Created", genCreatedTask) {
   property("valid") = forAll(genCreatedTask) { (a: WorkTask) =>
     a.valid == (a.loggedHours == 0)
   }
-  property("log hours") = notLoggable(genCreatedTask)
-  property("not finishable") = notFinishable(genCreatedTask)
-  property("start") = forAll(genCreatedTask) { (a: WorkTask) => (if(a.valid) {
+  property("log hours") = notLoggable
+  property("not finishable") = notFinishable
+  property("start") = forAll(genCreatedTask) { (a: WorkTask) => a.valid match {
+    case true =>
       a.start
-      a.status == Started
-    } else {
-      { a.start } throws classOf[IllegalStateException]
-    }): Prop
+      (a.status == Started): Prop
+    case false => { a.start } throws classOf[IllegalStateException]
+    }
   }
 }
 
-class StartedTaskSpecification extends Properties("Started") with Generators {
-  import CommonProperties._
-  property("valid") = validIfHoursPositive(genStartedTask)
-  property("start") = notStartable(genStartedTask)
-  property("finish") = forAll(genStartedTask) { (a: WorkTask) => ( if(a.valid) {
+class StartedTaskSpecification extends WorkTaskProperties("Started", genStartedTask) {
+  property("valid") = validIfHoursPositive
+  property("not startable") = notStartable
+  property("finish") = forAll(genStartedTask) { (a: WorkTask) => a.valid match {
+    case true =>
       a.finish
-      a.status == Finished
-    } else {
-      { a.finish } throws classOf[IllegalStateException]
-    }):Prop
+      (a.status == Finished): Prop
+    case false => { a.finish } throws classOf[IllegalStateException]
+    }
   }
   property("log hours") = forAll(genStartedTask, arbitrary[Int]) {
-    (a: WorkTask, h: Int) => (h match {
+    (a: WorkTask, h: Int) => h match {
       case _ if h <= 0 => {a log h} throws classOf[IllegalArgumentException]
-      case _ => {
+      case _ =>
         val saved = a.loggedHours
         a log h
-        a.loggedHours == saved + h
-      }
-    }): Prop
+        (a.loggedHours == saved + h): Prop
+    }
   }
+
 }
 
-class FinishedTaskSpecification extends Properties("Finished") with Generators {
-  import CommonProperties._
-  property("valid") = validIfHoursPositive(genFinishedTask)
-  property("not startable") = notStartable(genFinishedTask)
-  property("not loggable") = notLoggable(genFinishedTask)
-  property("not finishable") = notFinishable(genFinishedTask)
+class FinishedTaskSpecification extends WorkTaskProperties("Finished", genFinishedTask) {
+  property("valid") = validIfHoursPositive
+  property("not startable") = notStartable
+  property("not loggable") = notLoggable
+  property("not finishable") = notFinishable
 }
 
-object CommonProperties extends Generators {
-  def validIfHoursPositive(gen: Gen[WorkTask]) =
-    forAll(gen) { (a: WorkTask) =>
+trait WorkTaskCommonProperties {
+  def generator: Gen[WorkTask]
+  def validIfHoursPositive =
+    forAll(generator) { (a: WorkTask) =>
       a.valid == (a.loggedHours >= 0)
     }
-  def notLoggable(gen: Gen[WorkTask]) =
-    forAll(gen, arbitrary[Int]) { (a: WorkTask, h: Int) =>
+  def notLoggable =
+    forAll(generator, arbitrary[Int]) { (a: WorkTask, h: Int) =>
       {a log h} throws classOf[IllegalStateException]
     }
-  def notStartable(gen: Gen[WorkTask]) =
-    forAll(gen) { (a: WorkTask) =>
-      { a.start} throws classOf[IllegalStateException]
+  def notStartable =
+    forAll(generator) { (a: WorkTask) =>
+      { a.start } throws classOf[IllegalStateException]
     }
-  def notFinishable(gen: Gen[WorkTask]) =
-    forAll(gen) { (a: WorkTask) =>
+  def notFinishable =
+    forAll(generator) { (a: WorkTask) =>
       { a.finish } throws classOf[IllegalStateException]
     }
 }
 
-trait Generators {
+object WorkTaskGenerators {
   val genStatus = oneOf(Created, Started, Finished)
-
 
   def genTask(stGen: Gen[Status], hGen: Gen[Int]) = for {
     status <- stGen
