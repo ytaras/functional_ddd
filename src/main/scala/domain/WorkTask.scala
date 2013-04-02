@@ -10,6 +10,12 @@ case class WorkTask(
     case Created => loggedHours == 0
     case Started => loggedHours >= 0
   }
+
+  def log(hours: Int): Unit = status match {
+    case Started if hours <= 0 => throw new IllegalArgumentException
+    case Started               => _loggedHours += hours
+    case _                     => throw new IllegalStateException
+  }
 }
 
 sealed trait Status
