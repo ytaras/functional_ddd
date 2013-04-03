@@ -27,7 +27,7 @@ object SavingWorkTask extends Commands {
 
     postConditions += {
       case (_, _, true) => true
-      case _ => "failed match" |: false
+      case _ => "repository save return false" |: false
     }
   }
 
