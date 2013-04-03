@@ -3,7 +3,7 @@ package domain
 case class WorkTask(
   private var _status: Status,
   private var _loggedHours: Int
-  ) {
+  ) extends AggregateRoot[String] {
   val id: String = java.util.UUID.randomUUID.toString
   def status = _status
   def loggedHours = _loggedHours
