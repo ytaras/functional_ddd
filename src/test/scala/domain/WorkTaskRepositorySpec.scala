@@ -20,7 +20,7 @@ object WorkTaskRepositorySpecification extends Properties("WorkTaskRepository") 
 object SavingWorkTask extends Commands {
   import WorkTaskGenerators._
   import Gen._
-  case class State(tasks: Map[String, WorkTask])
+  case class State(tasks: Map[String, WorkTask], loadedId: String = null)
   case class SaveNew(wt: WorkTask) extends Command {
     def nextState(st: State) = st.copy(tasks = st.tasks + (wt.id -> wt))
     def run(st: State) = WorkTaskRepository.save(wt)
@@ -30,9 +30,28 @@ object SavingWorkTask extends Commands {
       case _ => "repository save return false" |: false
     }
   }
+  case class LoadExisting(rndNum: Int) extends Command {   
+    
+    private def key(map: Map[String, _]): String = {
+      val index = rndNum % map.size
+      map.keys.toList(index)
+    }
+    def nextState(st: State) = {
+      st.copy(loadedId = key(st.tasks))
+    }
+    def run(st: State) = WorkTaskRepository.load(key(st.tasks))
+    preConditions += {
+      case State(map, _) => !map.isEmpty
+    }
+
+    postConditions += {
+      case (_, State(map, id), wt: WorkTask) => map(id) == wt
+    }
+  }
 
   def initialState = State(Map.empty)
   def genSave: Gen[Command] = genValidTask flatMap { t => value(SaveNew(t)) }
-  def genCommand(s: State): Gen[Command] = genSave
+  def genLoad: Gen[Command] = posNum[Int] flatMap { t => value(LoadExisting(t))}
+  def genCommand(s: State): Gen[Command] = oneOf(genSave, genLoad)
 
 }
