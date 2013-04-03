@@ -45,13 +45,26 @@ object SavingWorkTask extends Commands {
     }
 
     postConditions += {
-      case (_, State(map, id), wt: WorkTask) => map(id) == wt
+      case (_, State(map, id), Some(wt: WorkTask)) => map(id) == wt
+    }
+  }
+
+  case object LoadMissing extends Command {
+    def nextState(st: State) = st.copy(loadedId = null)
+    def run(st: State) =
+      WorkTaskRepository.load(java.util.UUID.randomUUID.toString)
+    
+    postConditions += {
+      case(_, _, None) => true
+      case _ => "repository found something" |: false
     }
   }
 
   def initialState = State(Map.empty)
   def genSave: Gen[Command] = genValidTask flatMap { t => value(SaveNew(t)) }
   def genLoad: Gen[Command] = posNum[Int] flatMap { t => value(LoadExisting(t))}
-  def genCommand(s: State): Gen[Command] = oneOf(genSave, genLoad)
+  def genLoadMissing = value(LoadMissing)
+  def genCommand(s: State): Gen[Command] = oneOf(genSave, genLoad,
+    genLoadMissing)
 
 }
